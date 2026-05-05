@@ -1,6 +1,8 @@
 import time
 import random
 import matplotlib.pyplot as plt
+import gurobipy as gp
+from gurobipy import GRB
 
 def MatEtu(s): # Definition d'une fonction, avec un parametre (s). Ne pas oublier les ":"
     monFichier = open(s, "r") # Ouverture en lecture. Indentation par rapport a la ligne d'avant (<-> bloc).
@@ -310,3 +312,84 @@ def simu_iterations():
     plt.ylabel("Nombre moyen d'itérations")
     plt.legend()
     plt.show()
+
+
+def resoudre_affectation(pref_etu, pref_spe, capacites, k_limite=None):
+    # n = 13 (étudiants), m = 10 (parcours)
+    n = len(pref_etu)
+    m = len(pref_spe)
+    
+    # 1. Création du modèle
+    model = gp.Model("Affectation_Sorbonne")
+    
+    # 2. Variables de décision : x[i,j] = 1 si l'étudiant i va dans le parcours j
+    x = model.addVars(n, m, vtype=GRB.BINARY, name="x")
+
+    # 3. Calcul des utilités (Scores de Borda)
+    # Utilité etu[i][j] : quel score l'étudiant i donne au parcours j
+    u_etu = [[0]*m for _ in range(n)]
+    for i in range(n):
+        for rang, j in enumerate(pref_etu[i]):
+            u_etu[i][j] = (m - 1) - rang
+            
+    # Utilité spe[j][i] : quel score le parcours j donne à l'étudiant i
+    u_spe = [[0]*n for _ in range(m)]
+    for j in range(m):
+        for rang, i in enumerate(pref_spe[j]):
+            u_spe[j][i] = (n - 1) - rang
+
+    # 4. Contraintes
+    # Chaque étudiant est affecté à EXACTEMENT un parcours
+    model.addConstrs((x.sum(i, '*') == 1 for i in range(n)), name="Unicite")
+    
+    # Chaque parcours respecte sa capacité maximale
+    model.addConstrs((x.sum('*', j) <= capacites[j] for j in range(m)), name="Capacite")
+
+    # Question Q13/Q14 : Contrainte des k-premiers choix
+    # Un étudiant i est dans ses k premiers choix si son utilité >= (m - k)
+    if k_limite is not None:
+        for i in range(n):
+            model.addConstr(gp.quicksum(x[i, j] * u_etu[i][j] for j in range(m)) >= (m - k_limite))
+
+    # 5. Fonction Objectif (Q12 : Maximiser la somme des utilités totales)
+    obj = gp.quicksum(x[i, j] * (u_etu[i][j] + u_spe[j][i]) for i in range(n) for j in range(m))
+    model.setObjective(obj, GRB.MAXIMIZE)
+
+    # 6. Optimisation
+    model.optimize()
+
+    # 7. Récupération des résultats
+    if model.status == GRB.OPTIMAL:
+        affectation = [-1] * n
+        for i in range(n):
+            for j in range(m):
+                if x[i, j].X > 0.5:
+                    affectation[i] = j
+        
+        # Calcul des statistiques pour Q12 / Q15
+        util_max = sum(u_etu[i][affectation[i]] for i in range(n))
+        util_moy = util_max / n
+        util_min_etu = min(u_etu[i][affectation[i]] for i in range(n))
+        
+        return affectation, util_max, util_moy, util_min_etu
+    else:
+        return None, None, None, None
+
+def question_14(pref_etu, pref_spe, capacites):
+    print("--- Recherche du plus petit k (Question 14) ---")
+    
+    # On teste k de 1 (1er choix uniquement) à 10 (tous les choix possibles)
+    for k in range(1, 11):
+        print(f"\nEssai pour k = {k}...")
+        aff, maxi, moy, mini = resoudre_affectation(pref_etu, pref_spe, capacites, k_limite=k)
+        
+        if aff is not None:
+            print(f"SUCCÈS : Mariage parfait trouvé pour k = {k} !")
+            print(f"Affectation obtenue : {aff}")
+            paires = paires_instables(aff, pref_etu, pref_spe, capacites)
+            print(f"Nombre de paires instables : {len(paires)}")
+            print(f"Utilité moyenne : {moy:.2f}")
+            print(f"Utilité minimale : {mini}")
+            return aff, maxi, moy, mini, k
+        else:
+            print(f"ÉCHEC : Pas de solution pour k = {k}")
