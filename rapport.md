@@ -94,7 +94,7 @@ La fonction paires_instables analyse les mariages. Un couple $(e, s)$ est instab
 
 L'étudiant $e$ préfère le master $s$ à son affectation actuelle.
 
-Le master $s$ préfère l'étudiant $e$ à l'un de ses admis actuels (ou a une place vide).
+Le master $s$ préfère l'étudiant $e$ à l'un de ses admis actuels.
 Résultat : Gale-Shapley produit toujours 0 paire instable.
 
 ### Analyse de Performance (Q7-Q10)
