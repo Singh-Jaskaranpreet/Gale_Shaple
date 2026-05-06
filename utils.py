@@ -306,7 +306,7 @@ def resoudre_affectation_max_min(pref_etu, pref_spe, capacites, k_limite=None):
     x = model.addVars(n, m, vtype=GRB.BINARY, name="x")
     
     # Nouvelle variable : Utilité minimale parmi les étudiants
-    u_min_var = model.addVar(vtype=GRB.CONTINUOUS, name="u_min")
+    u_min_var = model.addVar(vtype=GRB.INTEGER, name="u_min")
 
     # 2. Calcul des utilités (Borda)
     u_etu = [[0]*m for _ in range(n)]
