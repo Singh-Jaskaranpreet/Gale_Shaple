@@ -20,7 +20,7 @@ Lecture des fichiers (Q1-Q2) : Les fonctions MatEtu et MatSpe nettoient les fich
 
 ## 3. Algorithme de Gale-Shapley (Q4-Q10)
 
-L'algorithme de Gale-Shapley garantit une affectation stable, où aucune "paire instable" (regret mutuel) n'existe.
+L'algorithme de Gale-Shapley garantit une affectation stable, où aucune "paire instable" n'existe.
 
 ### Implémentations (Q3-Q5)
 
@@ -28,7 +28,65 @@ GS_Etudiant : Les étudiants proposent. Le résultat est optimal pour les étudi
 
 GS_Parcours : Les masters proposent. Le résultat est optimal pour les parcours.
 
-Optimisation : Pour améliorer la performance, nous maintenons la liste des admis de chaque parcours triée par préférence. Cela permet d'identifier le "moins préféré" (le candidat à expulser) en temps constant $O(1)$.
+Pour GS_Etudiant :
+
+1. **Trouver un étudiant libre**  
+   Utilisation d'une pile (`self.libres`). On récupère un indice en $O(1)$ avec `.pop()`.
+
+2. **Trouver le prochain parcours**  
+   Chaque étudiant possède un compteur `self.proposition[i]` qui pointe vers l'index de son prochain vœu dans sa liste de préférences.
+
+3. **Position de l'étudiant dans le classement du parcours**  
+   Pour éviter une recherche en $O(n)$ à chaque fois, nous pré-calculons une matrice `rank_spe[parcours][etudiant]`.  
+   Cela permet un accès en $O(1)$.
+
+4. **Trouver l'étudiant le moins préféré**  
+   Dans `self.cap_actu[j]`, nous maintenons la liste des admis triée $O(Capacite \log(Capacite))$.  
+   Le moins préféré est donc toujours le dernier élément (`[-1]`) en $O(1)$.
+
+5. **Remplacer un étudiant**  
+   Lorsqu'un meilleur étudiant est accepté, on retire le dernier de la liste triée, on insère le nouveau, puis on re-trie (ou on insère de façon ordonnée) la liste.
+
+
+Pour GS_Parcours :
+
+1. **Trouver un parcours libre**  
+   Utilisation d'un set (`self.libres`).  
+   Un parcours est libre s'il a encore des places (`len(self.cap_actu[j]) < cap_max`) et des étudiants à contacter.  
+   On récupère un indice en $O(1)$ avec `.pop()`.
+
+2. **Trouver le prochain étudiant à solliciter**  
+   Chaque parcours possède un compteur `self.proposition[j]` qui pointe vers le prochain étudiant dans sa liste de préférences `self.spe[j]`.
+
+3. **Position du parcours dans le classement de l'étudiant**  
+   Pour éviter une recherche en $O(n)$, nous pré-calculons une matrice `rank_etu[etudiant][parcours]`.  
+   Cela permet à un étudiant de comparer deux parcours en $O(1)$.
+
+4. **Décision de l'étudiant (le receveur)**  
+   L'étudiant ne peut être affecté qu'à un seul parcours :
+   - s'il est libre, il accepte,
+   - sinon, il compare son parcours actuel avec le nouveau et garde le meilleur.
+
+5. **Remplacer un étudiant**  
+   Si un étudiant accepte un nouveau parcours :
+   - il quitte son ancien parcours, qui redevient libre (ajouté à `self.libres`),
+   - il est ajouté au nouveau parcours (`self.cap_actu[j]`),
+   - `self.mariage[i]` est mis à jour.
+
+
+### Complexité temporelle : $O(n \times m)$
+
+- Le nombre total d'itérations est strictement borné par le produit du nombre d'étudiants ($n$) et du nombre de parcours ($m$).
+- **Pire cas :** chaque parcours propose successivement ses places à tous les étudiants de sa liste.
+- **Coût d'une itération :** grâce à la matrice `rank_etu`, chaque proposition est traitée en $O(1)$.
+
+**Total :** $O(n \times m)$.
+
+---
+
+### Complexité spatiale : $O(n \times m)$
+
+Le stockage de la matrice des rangs inversée occupe un espace proportionnel au produit des deux populations.
 
 ### Vérification de la Stabilité (Q6)
 
@@ -51,18 +109,18 @@ Le temps d'exécution confirme l'efficacité de l'algorithme pour des instances 
 
 ### Modélisation (Q11)
 
-Le problème est modélisé avec des variables binaires $x_{i,j} \in \{0, 1\}$.
+Le problème est modélisé avec des variables binaires $x_{i,j} \in \{0, 1\}$ avec $i$ les étudiants et $j$ les parcours.
 
-Contrainte d'unicité : $\sum_{j=1}^{m} x_{i,j} = 1$ (chaque étudiant a un master).
+Contrainte d'unicité : $$\forall i \in \{0, \dots, n-1\}, \quad \sum_{j=0}^{m-1} x_{i,j} = 1$$
 
-Contrainte de capacité : $\sum_{i=1}^{n} x_{i,j} \leq C_j$ (respect des places disponibles).
+Contrainte de capacité : $$\forall j \in \{0, \dots, m-1\}, \quad \sum_{i=0}^{n-1} x_{i,j} \leq C_j$$
 
 ### Maximisation de l'Utilité Totale (Q12)
 
 Nous maximisons la somme des scores de Borda des étudiants et des parcours :
 
 
-$$\text{Maximiser } Z = \sum_{i=1}^{n} \sum_{j=1}^{m} x_{i,j} \cdot (u_{i,j} + v_{j,i})$$
+$$\text{Maximiser } Z = \sum_{i=0}^{n-1} \sum_{j=0}^{m-1} x_{i,j} \cdot (u_{i,j} + v_{j,i})$$
 
 Observation : L'utilité totale est supérieure à celle de Gale-Shapley, mais la solution est instable (apparition de paires bloquantes). Le système privilégie le "bonheur global" au détriment de certains individus.
 
@@ -71,26 +129,17 @@ Observation : L'utilité totale est supérieure à celle de Gale-Shapley, mais l
 Pour éviter qu'un étudiant ne reçoive son dernier vœu (utilité 0), nous imposons :
 
 
-$$\forall i, \sum_{j=1}^{m} x_{i,j} \cdot u_{i,j} \geq (m - k)$$
+$$\forall i, \sum_{j=0}^{m-1} x_{i,j} \cdot u_{i,j} \geq (m - k)$$
 
 Test $k=5$ : L'utilité minimale passe de 0 à 5.
 
-Analyse : Plus $k$ est petit, plus le problème est difficile. Si $k$ est trop petit, le modèle devient infaisable (Infeasible).
+Analyse : Plus $k$ est petit, plus le problème est difficile. Si $k$ est trop petit, le modèle devient infaisable.
 
 ## 5. Synthèse et Comparaison Finale (Q15)
 
-| Critère            | Gale-Shapley                 | Gurobi (Q12)                     | Gurobi (Q14)                      |
-|--------------------|-----------------------------|----------------------------------|----------------------------------|
-| Stabilité          | Parfaite (0 paire)          | Instable (ex: 6 paires)          | Instable (ex: 3 paires)          |
-| Efficacité Globale | Moyenne                     | Maximale (Optimum social)        | Bonne                            |
-| Satisfaction Min   | Faible (risque de vœu 10)   | Très faible (vœu 10 possible)    | Garantie (vœu k minimum)         |
-
-## Conclusion
-
-Ce TME met en lumière l'arbitrage fondamental entre stabilité et efficacité :
-
-Gale-Shapley garantit la paix sociale (pas de contestation) mais peut être sous-optimal globalement.
-
-L'optimisation linéaire permet de maximiser le bien-être collectif ou d'imposer des règles d'équité strictes, mais elle génère des frustrations locales (instabilités).
-
-Dans un contexte réel, la solution de la Q14 semble la plus équilibrée, car elle permet de garantir à chaque étudiant un choix "raisonnable" tout en cherchant à satisfaire le plus grand nombre.
+| Critère | Gale-Shapley | Q11 Max Utilité Min | Q12 Max Somme Utilités | Q14 Min k pour faisabilité |
+|----------|----------------------|--------------------------|----------------------|----------------------|
+| Utilité Moyenne Étudiants | 7,85 | 8,15 | 7,23 | 8,08 |
+| Utilité Moyenne Parcours | 10,10 | 8,20 | 11,90 | 9,60 |
+| Utilité Minimale Étudiants | 4,00 | 5,00 | 0,00 | 5,00 |
+| Nombre de Paires Instables | 0 | 6 | 6 | 3 |

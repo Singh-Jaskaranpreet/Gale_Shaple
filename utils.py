@@ -1,8 +1,8 @@
 import time
 import random
 import matplotlib.pyplot as plt
-import gurobipy as gp
-from gurobipy import GRB
+#import gurobipy as gp
+#from gurobipy import GRB
 
 def MatEtu(s): # Definition d'une fonction, avec un parametre (s). Ne pas oublier les ":"
     monFichier = open(s, "r") # Ouverture en lecture. Indentation par rapport a la ligne d'avant (<-> bloc).
@@ -142,8 +142,8 @@ class GS_Parcours:
             for rank, s in enumerate(self.etu[e]):
                 self.rank_etu[e][s] = rank
 
-        self.libres = list(range(self.nb_spe))
-        self.cap_actu = [[] for _ in range(self.nb_spe)]
+        self.libres = set(range(self.nb_spe))
+        self.cap_actu = [set() for _ in range(self.nb_spe)]
         self.mariage = [-1] * self.nb_etu
         self.proposition = [0] * self.nb_spe
 
@@ -168,12 +168,11 @@ class GS_Parcours:
         return self.rank_etu[etu_ind][spe_ind]
 
     def remplacer(self, spe_anc, spe_nv, etu_ind) :
-        self.cap_actu[spe_anc].remove(etu_ind)
-        self.cap_actu[spe_nv].append(etu_ind)
+        self.cap_actu[spe_anc].discard(etu_ind)
+        self.cap_actu[spe_nv].add(etu_ind)
         self.mariage[etu_ind] = spe_nv
 
-        if spe_anc not in self.libres:
-            self.libres.append(spe_anc)
+        self.libres.add(spe_anc)
 
     def gs_spe(self) :
         spe = self.trouve_spe()
@@ -182,15 +181,14 @@ class GS_Parcours:
             etu = self.trouve_etu(spe)
             if self.mariage[etu] == -1:
                 self.mariage[etu] = spe
-                self.cap_actu[spe].append(etu)
+                self.cap_actu[spe].add(etu)
             else:
                 spe_actuel = self.mariage[etu]
                 if self.pos_spe(etu, spe) < self.pos_spe(etu, spe_actuel):
                     self.remplacer(spe_actuel, spe, etu)
 
             if len(self.cap_actu[spe]) < self.cap_max[spe] and self.proposition[spe] < self.nb_etu:
-                if spe not in self.libres:
-                    self.libres.append(spe)
+                self.libres.add(spe)
             spe = self.trouve_spe()
         return self.mariage
 
@@ -206,30 +204,25 @@ def paires_instables(mariage, pref_etu, pref_spe, cap_max):
     # Reconstruire qui est dans quel parcours
     admis_actuels = [[] for _ in range(nb_spe)]
     for e, s in enumerate(mariage):
-        if s != -1:
-            admis_actuels[s].append(e)
+        admis_actuels[s].append(e)
 
     for e in range(nb_etu):
         s_actuel = mariage[e]
-        vœux_e = pref_etu[e]
+        choix_e = pref_etu[e]
         
         # Trouver l'index du master actuel dans les vœux de l'étudiant
-        idx_limite = vœux_e.index(s_actuel) if s_actuel != -1 else len(vœux_e)
+        idx_limite = choix_e.index(s_actuel)
         
         # L'étudiant regarde tous les masters qu'il préfère à son actuel
-        for s_mieux in vœux_e[:idx_limite]:
-            # Le master s_mieux préfère-t-il 'e' à l'un de ses admis ?
-            if len(admis_actuels[s_mieux]) < cap_max[s_mieux]:
-                instables.append((e, s_mieux))
-            else:
-                # Le master est plein, on cherche s'il y a un "moins bien classé" que 'e'
-                pref_s = pref_spe[s_mieux]
-                rang_e = pref_s.index(e)
-                for admis in admis_actuels[s_mieux]:
-                    if rang_e < pref_s.index(admis):
-                        if (e, s_mieux) not in instables:
-                            instables.append((e, s_mieux))
-                        break
+        for s_mieux in choix_e[:idx_limite]:
+            # Le master est plein, on cherche s'il y a un "moins bien classé" que 'e'
+            pref_s = pref_spe[s_mieux]
+            rang_e = pref_s.index(e)
+            for admis in admis_actuels[s_mieux]:
+                if rang_e < pref_s.index(admis):
+                    if (e, s_mieux) not in instables:
+                        instables.append((e, s_mieux))
+                    break
     return instables
 
 def generer_donnees(n):
@@ -303,7 +296,68 @@ def simu_perf():
     plt.tight_layout()
     plt.show()
 
+def resoudre_affectation_max_min(pref_etu, pref_spe, capacites, k_limite=None):
+    n = len(pref_etu)
+    m = len(pref_spe)
+    
+    model = gp.Model("Affectation_MaxMin")
+    model.setParam('OutputFlag', 0)
+    # 1. Variables de décision
+    x = model.addVars(n, m, vtype=GRB.BINARY, name="x")
+    
+    # Nouvelle variable : Utilité minimale parmi les étudiants
+    u_min_var = model.addVar(vtype=GRB.CONTINUOUS, name="u_min")
 
+    # 2. Calcul des utilités (Borda)
+    u_etu = [[0]*m for _ in range(n)]
+    for i in range(n):
+        for rang, j in enumerate(pref_etu[i]):
+            u_etu[i][j] = (m - 1) - rang
+
+    u_spe = [[0]*n for _ in range(m)]
+    for j in range(m):
+        for rang, i in enumerate(pref_spe[j]):
+            u_spe[j][i] = (n - 1) - rang
+
+    # 3. Contraintes standards
+    model.addConstrs((x.sum(i, '*') == 1 for i in range(n)), name="Unicite")
+    model.addConstrs((x.sum('*', j) == capacites[j] for j in range(m)), name="Capacite")
+
+    # 4. Contraintes pour définir l'utilité minimale (Max-Min)
+    # Pour chaque étudiant i, son utilité réelle doit être >= u_min_var
+    for i in range(n):
+        model.addConstr(
+            gp.quicksum(x[i, j] * u_etu[i][j] for j in range(m)) >= u_min_var, 
+            name=f"MinUtil_etu_{i}"
+        )
+
+    # 5. Fonction Objectif : Maximiser l'utilité minimale
+    model.setObjective(u_min_var, GRB.MAXIMIZE)
+
+    # 6. Optimisation
+    model.optimize()
+
+    # 7. Récupération des résultats
+    if model.status == GRB.OPTIMAL:
+        affectation = [-1] * n
+        score_total_etu = 0
+        score_total_spe = 0
+
+        for i in range(n):
+            for j in range(m):
+                if x[i, j].X > 0.5:
+                    affectation[i] = j
+                    score_total_etu += u_etu[i][j]
+                    score_total_spe += u_spe[j][i]
+        
+        moy_etu = score_total_etu / n
+        moy_spe = score_total_spe / m
+        
+        util_min_etu_calculee = u_min_var.X
+        
+        return affectation, moy_etu, moy_spe, util_min_etu_calculee
+    else:
+        return None, None, None, None
 
 def resoudre_affectation(pref_etu, pref_spe, capacites, k_limite=None):
     # n = 13 (étudiants), m = 10 (parcours)
@@ -312,7 +366,7 @@ def resoudre_affectation(pref_etu, pref_spe, capacites, k_limite=None):
     
     # 1. Création du modèle
     model = gp.Model("Affectation")
-    
+    model.setParam('OutputFlag', 0)
     # 2. Variables de décision : x[i,j] = 1 si l'étudiant i va dans le parcours j
     x = model.addVars(n, m, vtype=GRB.BINARY, name="x")
 
@@ -352,35 +406,35 @@ def resoudre_affectation(pref_etu, pref_spe, capacites, k_limite=None):
     # 7. Récupération des résultats
     if model.status == GRB.OPTIMAL:
         affectation = [-1] * n
+        score_total_etu = 0
+        score_total_spe = 0
+
         for i in range(n):
             for j in range(m):
                 if x[i, j].X > 0.5:
                     affectation[i] = j
+                    score_total_etu += u_etu[i][j]
+                    score_total_spe += u_spe[j][i]
         
+        moy_etu = score_total_etu / n
+        moy_spe = score_total_spe / m
+
         # Calcul des statistiques pour Q12 / Q15
-        util_max = sum(u_etu[i][affectation[i]] for i in range(n))
-        util_moy = util_max / n
         util_min_etu = min(u_etu[i][affectation[i]] for i in range(n))
         
-        return affectation, util_max, util_moy, util_min_etu
+        return affectation, moy_etu, moy_spe, util_min_etu
     else:
         return None, None, None, None
 
 def question_14(pref_etu, pref_spe, capacites):
     print("--- Recherche du plus petit k (Question 14) ---")
     
-    # On teste k de 1 (1er choix uniquement) à 10 (tous les choix possibles)
     for k in range(1, 11):
         print(f"\nEssai pour k = {k}...")
-        aff, maxi, moy, mini = resoudre_affectation(pref_etu, pref_spe, capacites, k_limite=k)
+        aff, moy_etu, moy_spe, k = resoudre_affectation(pref_etu, pref_spe, capacites, k_limite=k)
         
         if aff is not None:
             print(f"SUCCÈS : Mariage parfait trouvé pour k = {k} !")
-            print(f"Affectation obtenue : {aff}")
-            paires = paires_instables(aff, pref_etu, pref_spe, capacites)
-            print(f"Nombre de paires instables : {len(paires)}")
-            print(f"Utilité moyenne : {moy:.2f}")
-            print(f"Utilité minimale : {mini}")
-            return aff, maxi, moy, mini, k
+            return aff, moy_etu, moy_spe, k
         else:
             print(f"ÉCHEC : Pas de solution pour k = {k}")
