@@ -115,6 +115,13 @@ Contrainte d'unicité : $$\forall i \in \{0, \dots, n-1\}, \quad \sum_{j=0}^{m-1
 
 Contrainte de capacité : $$\forall j \in \{0, \dots, m-1\}, \quad \sum_{i=0}^{n-1} x_{i,j} \leq C_j$$
 
+Contrainte de Seuil (La plus importante) : 
+<br>Pour chaque étudiant, son utilité réelle doit être supérieure ou égale à $Z$.
+
+$$\forall i \in \{0, \dots, n-1\}, \quad \sum_{j=0}^{m-1} x_{i,j} \cdot u_{i,j} \geq Z$$
+
+L'étudiant qui a le score le plus bas fixera la valeur maximale que $Z$ pourra atteindre.
+
 ### Maximisation de l'Utilité Totale (Q12)
 
 Nous maximisons la somme des scores de Borda des étudiants et des parcours :
