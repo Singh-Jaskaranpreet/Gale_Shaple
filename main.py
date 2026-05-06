@@ -19,15 +19,14 @@ print(gs_parcours.cap_actu)
 print(f'Mariages instables : {paires_instables(gs_parcours.get_mariage(), Etu, Spe, Cap)}')
 
 simu_perf()
-simu_iterations()
 
 aff, maxi, moy, mini = resoudre_affectation(Etu, Spe, Cap)
 
 aff2, maxi2, moy2, mini2, k_min = question_14(Etu, Spe, Cap)
 
-print("Resoudre Affectation Q12")
+print("\n\nResoudre Affectation Q12")
 print(f"Utilité maximale : {maxi}\nUtilité moyenne : {moy}\n Utilité min : {mini}\n Affectation : {aff}")
 print(f'Mariages instables : {paires_instables(aff, Etu, Spe, Cap)}\n')
 print("Resoudre Affectation Q14")
-print(f"Utilité moyenne : {maxi2}\n Utilité min : {mini2}\n Affectation : {aff2}, K_min : {k_min}")
+print(f"Utilité maximale : {maxi2}\nUtilité moyenne : {moy2}\n Utilité min : {mini2}\n Affectation : {aff2}, K_min : {k_min}")
 print(f'Mariages instables : {paires_instables(aff2, Etu, Spe, Cap)}')

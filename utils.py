@@ -88,25 +88,23 @@ class GS_Etudiant:
         return self.rank_spe[spe_ind][etu_ind]
 
     def least_pref(self, spe_ind):
-        pos_least = -1
-        rep = None
-        ind = -1
-        for i in range(len(self.cap_actu[spe_ind])):
-            etu = self.cap_actu[spe_ind][i]
-            rang_actu = self.pos_etu(etu, spe_ind)
-            if rang_actu > pos_least: 
-                pos_least = rang_actu
-                rep = etu
-                ind = i
-        return rep, pos_least, ind
+        etu = self.cap_actu[spe_ind][-1]
+        return etu, self.pos_etu(etu, spe_ind)
 
-    def remplacer(self, etu_anc, etu_nv, spe_ind, etu_anc_ind):
-
-        self.cap_actu[spe_ind][etu_anc_ind] = etu_nv
+    def remplacer(self, etu_anc, etu_nv, spe_ind):
+        # 1. On retire l'ancien (le moins bien classé)
+        self.cap_actu[spe_ind].pop() # Retire le dernier car c'est le moins préféré
         
+        # 2. On ajoute le nouveau
+        self.cap_actu[spe_ind].append(etu_nv)
+        
+        # 3. On TRIE la liste des étudiants admis dans ce parcours 
+        # selon le rang qu'ils ont dans la liste de préférence du parcours
+        self.cap_actu[spe_ind].sort(key=lambda e: self.pos_etu(e, spe_ind))
+        
+        # 4. Mise à jour des états
         self.mariage[etu_anc] = -1
         self.mariage[etu_nv] = spe_ind
-        
         self.libres.append(etu_anc)
 
     def gs_etu(self) :
@@ -119,9 +117,9 @@ class GS_Etudiant:
                 self.mariage[etu] = spe
                 self.cap_actu[spe].append(etu)
             else :
-                lp_etu, lp_pos, lp_ind = self.least_pref(spe)
+                lp_etu, lp_pos = self.least_pref(spe)
                 if self.pos_etu(etu, spe) < lp_pos :
-                    self.remplacer(lp_etu, etu, spe, lp_ind)
+                    self.remplacer(lp_etu, etu, spe)
                 else :
                     self.libres.append(etu)
             etu = self.trouve_etu()   
@@ -248,70 +246,63 @@ def generer_donnees(n):
 
 def simu_perf():
     tailles = range(200, 2001, 200)
-    temps_etu = []
-    temps_spe = []
+    temps_etu, temps_spe = [], []
+    it_etu, it_spe = [], []
 
     for n in tailles:
-        t_etu_acc = 0
-        t_spe_acc = 0
+        t_etu_acc, t_spe_acc = 0, 0
+        total_it_etu, total_it_spe = 0, 0
         nb_tests = 10
         
         for _ in range(nb_tests):
             E, S, C = generer_donnees(n)
             
-            # Mesure GS_Etudiant
+            # --- Test GS_Etudiant ---
             g_e = GS_Etudiant(E, S, C)
             start = time.time()
             g_e.gs_etu()
             t_etu_acc += (time.time() - start)
+            total_it_etu += g_e.cpt
             
-            # Mesure GS_Parcours
+            # --- Test GS_Parcours ---
             g_s = GS_Parcours(E, S, C)
             start = time.time()
             g_s.gs_spe()
             t_spe_acc += (time.time() - start)
+            total_it_spe += g_s.cpt
             
+        # Calcul des moyennes
         temps_etu.append(t_etu_acc / nb_tests)
         temps_spe.append(t_spe_acc / nb_tests)
+        it_etu.append(total_it_etu / nb_tests)
+        it_spe.append(total_it_spe / nb_tests)
 
-    # Affichage Q8
-    plt.plot(tailles, temps_etu, label="GS_Etudiant")
-    plt.plot(tailles, temps_spe, label="GS_Parcours")
+    # --- Affichage des graphiques ---
+    plt.figure(figsize=(15, 5)) # Fenêtre plus large pour deux graphiques
+
+    # Graphique 1 : Temps d'exécution
+    plt.subplot(1, 2, 1)
+    plt.plot(tailles, temps_etu, 'o-', label="GS_Etudiant")
+    plt.plot(tailles, temps_spe, 's-', label="GS_Parcours")
     plt.xlabel("Nombre d'étudiants (n)")
-    plt.ylabel("Temps moyen (secondes)")
+    plt.ylabel("Temps moyen (s)")
+    plt.title("Performance : Temps d'exécution")
     plt.legend()
-    plt.show()
+    plt.grid(True)
 
-def simu_iterations():
-    tailles = range(200, 2001, 200)
-    it_etu = []
-    it_spe = []
-
-    for n in tailles:
-        total_it_etu = 0
-        total_it_spe = 0
-        
-        for _ in range(10):
-            E, S, C = generer_donnees(n)
-            
-            g_e = GS_Etudiant(E, S, C)
-            g_e.gs_etu()
-            total_it_etu += g_e.cpt
-            
-            g_p = GS_Parcours(E, S, C)
-            g_p.gs_spe()
-            total_it_spe += g_p.cpt
-            
-        it_etu.append(total_it_etu / 10)
-        it_spe.append(total_it_spe / 10)
-
-    # Affichage
-    plt.plot(tailles, it_etu, label="Itérations GS Étudiant")
-    plt.plot(tailles, it_spe, label="Itérations GS Parcours")
+    # Graphique 2 : Nombre d'itérations
+    plt.subplot(1, 2, 2)
+    plt.plot(tailles, it_etu, 'o-', label="Itérations GS Étudiant", color='blue')
+    plt.plot(tailles, it_spe, 's-', label="Itérations GS Parcours", color='orange')
     plt.xlabel("Nombre d'étudiants (n)")
     plt.ylabel("Nombre moyen d'itérations")
+    plt.title("Complexité : Nombre d'itérations")
     plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
     plt.show()
+
 
 
 def resoudre_affectation(pref_etu, pref_spe, capacites, k_limite=None):
@@ -320,7 +311,7 @@ def resoudre_affectation(pref_etu, pref_spe, capacites, k_limite=None):
     m = len(pref_spe)
     
     # 1. Création du modèle
-    model = gp.Model("Affectation_Sorbonne")
+    model = gp.Model("Affectation")
     
     # 2. Variables de décision : x[i,j] = 1 si l'étudiant i va dans le parcours j
     x = model.addVars(n, m, vtype=GRB.BINARY, name="x")
@@ -343,7 +334,7 @@ def resoudre_affectation(pref_etu, pref_spe, capacites, k_limite=None):
     model.addConstrs((x.sum(i, '*') == 1 for i in range(n)), name="Unicite")
     
     # Chaque parcours respecte sa capacité maximale
-    model.addConstrs((x.sum('*', j) <= capacites[j] for j in range(m)), name="Capacite")
+    model.addConstrs((x.sum('*', j) == capacites[j] for j in range(m)), name="Capacite")
 
     # Question Q13/Q14 : Contrainte des k-premiers choix
     # Un étudiant i est dans ses k premiers choix si son utilité >= (m - k)
