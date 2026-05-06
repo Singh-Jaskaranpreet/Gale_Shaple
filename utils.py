@@ -1,8 +1,8 @@
 import time
 import random
 import matplotlib.pyplot as plt
-#import gurobipy as gp
-#from gurobipy import GRB
+import gurobipy as gp
+from gurobipy import GRB
 
 def MatEtu(s): # Definition d'une fonction, avec un parametre (s). Ne pas oublier les ":"
     monFichier = open(s, "r") # Ouverture en lecture. Indentation par rapport a la ligne d'avant (<-> bloc).
