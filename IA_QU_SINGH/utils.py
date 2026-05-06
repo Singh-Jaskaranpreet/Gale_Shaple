@@ -4,29 +4,40 @@ import matplotlib.pyplot as plt
 import gurobipy as gp
 from gurobipy import GRB
 
-def MatEtu(s): # Definition d'une fonction, avec un parametre (s). Ne pas oublier les ":"
-    monFichier = open(s, "r") # Ouverture en lecture. Indentation par rapport a la ligne d'avant (<-> bloc).
-    contenu = monFichier.readlines() # Contenu contient une liste de chainces de caracteres, chaque chaine correspond a une ligne       
-    monFichier.close() #Fermeture du fichier
+def MatEtu(s): 
+    # Ouvre le fichier des préférences étudiants en mode lecture ("r")
+    monFichier = open(s, "r") 
+    contenu = monFichier.readlines() 
+    monFichier.close() 
+    
+    # Supprime la ligne d'en-tête (ex: "Etudiants/Parcours")
     contenu.remove(contenu[0])
+    
     for i in range(len(contenu)) :
         contenu[i] = contenu[i].split()  
+        # Supprime les deux premières colonnes (souvent l'ID et le nom)
         contenu[i].remove(contenu[i][0])
         contenu[i].remove(contenu[i][0])
+        # Convertit les chaînes de caractères restantes en entiers (IDs des parcours)
         contenu[i] = list(map(int, contenu[i]))
     return contenu
 
-
-def MatSpe(s): # Definition d'une fonction, avec un parametre (s). Ne pas oublier les ":"
-    monFichier = open(s, "r") # Ouverture en lecture. Indentation par rapport a la ligne d'avant (<-> bloc).
-    contenu = monFichier.readlines() # Contenu contient une liste de chainces de caracteres, chaque chaine correspond a une ligne       
-    monFichier.close() #Fermeture du fichier
+def MatSpe(s): 
+    monFichier = open(s, "r")
+    contenu = monFichier.readlines()
+    monFichier.close()
+    
     contenu.remove(contenu[0])
+    # La deuxième ligne contient généralement les capacités des parcours
     capacite = contenu[0]
     contenu.remove(capacite)
+    
+    # Nettoyage de la ligne des capacités pour obtenir une liste d'entiers
     capacite = capacite.split()
     capacite.remove(capacite[0])
     capacite = list(map(int, capacite))
+    
+    # Traitement identique à MatEtu pour les préférences des parcours
     for i in range(len(contenu)) :
         contenu[i] = contenu[i].split()  
         contenu[i].remove(contenu[i][0])
@@ -54,23 +65,23 @@ def createFichierLP(nomFichier,nombreVariables):
 class GS_Etudiant:
 
     def __init__(self, etu, spe, cap):
-        self.etu = etu
+        self.etu = etu              # Liste des vœux des étudiants
         self.nb_etu = len(etu)
-        self.spe = spe
+        self.spe = spe              # Liste des vœux des parcours
         self.nb_spe = len(spe)
-        self.cap_max = cap
+        self.cap_max = cap          # Capacités max par parcours
 
+        # Pré-calcul des rangs pour un accès O(1) : quelle place occupe l'étudiant 'e' chez la spé 's'
         self.rank_spe = [[0] * self.nb_etu for _ in range(self.nb_spe)]
         for s in range(self.nb_spe):
             for rank, e in enumerate(self.spe[s]):
                 self.rank_spe[s][e] = rank
 
-        self.libres = list(range(self.nb_etu))
-        self.cap_actu = [[] for _ in range(self.nb_spe)]
-        self.mariage = [-1] * self.nb_etu
-        self.proposition = [0] * self.nb_etu
-
-        self.cpt = 0
+        self.libres = list(range(self.nb_etu)) # Étudiants non affectés
+        self.cap_actu = [[] for _ in range(self.nb_spe)] # Admissions temporaires
+        self.mariage = [-1] * self.nb_etu # Résultat final : [index_parcours, ...]
+        self.proposition = [0] * self.nb_etu # Index du prochain vœu à tenter pour chaque étudiant
+        self.cpt = 0 # Compteur d'itérations pour l'analyse de performance
 
     def trouve_etu(self):
         if self.libres:
@@ -104,19 +115,23 @@ class GS_Etudiant:
         etu = self.trouve_etu()
         while etu != -1 :
             self.cpt += 1
-            spe = self.trouve_spe(etu)
+            spe = self.trouve_spe(etu) # L'étudiant propose à son meilleur choix restant
 
+            # Si le parcours a de la place, il accepte provisoirement
             if len(self.cap_actu[spe]) < self.cap_max[spe] :
                 self.mariage[etu] = spe
                 self.cap_actu[spe].append(etu)
             else :
+                # Sinon, le parcours compare l'étudiant avec son "moins préféré" déjà admis
                 lp_etu, lp_pos = self.least_pref(spe)
                 if self.pos_etu(etu, spe) < lp_pos :
+                    # Si le nouveau est meilleur, on remplace l'ancien
                     self.remplacer(lp_etu, etu, spe)
                 else :
+                    # Sinon, l'étudiant reste libre pour le prochain tour
                     self.libres.append(etu)
             etu = self.trouve_etu()   
-        return self.mariage 
+        return self.mariage
 
     def get_mariage(self) :
         return self.mariage
@@ -124,22 +139,35 @@ class GS_Etudiant:
 class GS_Parcours:
 
     def __init__(self, etu, spe, cap):
-        self.etu = etu
-        self.nb_etu = len(etu)
-        self.spe = spe
-        self.nb_spe = len(spe)
-        self.cap_max = cap
+        # --- Stockage des données de base ---
+        self.etu = etu              # Liste de listes : vœux des étudiants (ex: etu[0] = [3, 1, 2])
+        self.nb_etu = len(etu)      # Nombre total d'étudiants
+        self.spe = spe              # Liste de listes : classement des étudiants par chaque parcours
+        self.nb_spe = len(spe)      # Nombre total de parcours (masters)
+        self.cap_max = cap          # Liste des capacités maximales par parcours (ex: [15, 20, 10...])
 
+        # On crée une matrice inversée pour savoir INSTANTANÉMENT si l'étudiant 'e' préfère le parcours A au parcours B.
         self.rank_etu = [[0] * self.nb_spe for _ in range(self.nb_etu)]
         for e in range(self.nb_etu):
             for rank, s in enumerate(self.etu[e]):
                 self.rank_etu[e][s] = rank
 
+        # --- État de l'algorithme ---
+        # Ensemble (set) des parcours qui ont encore des places disponibles
         self.libres = set(range(self.nb_spe))
+        
+        # Liste d'ensembles : contient les IDs des étudiants actuellement admis dans chaque parcours
         self.cap_actu = [set() for _ in range(self.nb_spe)]
+        
+        # Liste des mariages : mariage[e] = s signifie que l'étudiant 'e' est affecté au parcours 's'
+        # Initialisé à -1 (aucun mariage)
         self.mariage = [-1] * self.nb_etu
+        
+        # Liste de compteurs : pour chaque parcours, quel est l'index du prochain étudiant à démarcher
+        # On commence à 0 (le top de leur liste de vœux)
         self.proposition = [0] * self.nb_spe
 
+        # Compteur d'itérations (utile pour les statistiques de performance)
         self.cpt = 0
 
     def trouve_etu(self, spe_ind):
@@ -168,21 +196,28 @@ class GS_Parcours:
         self.libres.add(spe_anc)
 
     def gs_spe(self) :
-        spe = self.trouve_spe()
+        spe = self.trouve_spe() # On prend un parcours qui a des places libres
         while spe != -1 :
             self.cpt += 1
+            # Le parcours propose au meilleur étudiant sur sa liste qu'il n'a pas encore contacté
             etu = self.trouve_etu(spe)
+            
+            # Cas 1 : L'étudiant n'est pas encore marié
             if self.mariage[etu] == -1:
                 self.mariage[etu] = spe
                 self.cap_actu[spe].add(etu)
             else:
+                # Cas 2 : L'étudiant est déjà pris. Il compare !
                 spe_actuel = self.mariage[etu]
+                # Si l'étudiant préfère ce nouveau parcours au sien :
                 if self.pos_spe(etu, spe) < self.pos_spe(etu, spe_actuel):
-                    self.remplacer(spe_actuel, spe, etu)
+                    self.remplacer(spe_actuel, spe, etu) # Il change de parcours
 
+            # Si après la proposition, le parcours a encore de la place et des candidats :
             if len(self.cap_actu[spe]) < self.cap_max[spe] and self.proposition[spe] < self.nb_etu:
                 self.libres.add(spe)
-            spe = self.trouve_spe()
+            
+            spe = self.trouve_spe() # On passe au parcours libre suivant
         return self.mariage
 
     def get_mariage(self) :
