@@ -129,11 +129,11 @@ Nous maximisons la somme des scores de Borda des étudiants et des parcours :
 
 $$\text{Maximiser } Z = \sum_{i=0}^{n-1} \sum_{j=0}^{m-1} x_{i,j} \cdot (u_{i,j} + v_{j,i})$$
 
-Observation : L'utilité totale est supérieure à celle de Gale-Shapley, mais la solution est instable (apparition de paires bloquantes). Le système privilégie le "bonheur global" au détriment de certains individus.
+Observation : L'utilité totale est supérieure à celle de Gale-Shapley, mais la solution est instable. Le système privilégie le "bonheur global" au détriment de certains individus.
 
 ### Équité et Contrainte $k$ (Q13-Q14)
 
-Pour éviter qu'un étudiant ne reçoive son dernier vœu (utilité 0), nous imposons :
+Pour éviter qu'un étudiant ne reçoive son dernier vœu, nous imposons :
 
 
 $$\forall i, \sum_{j=0}^{m-1} x_{i,j} \cdot u_{i,j} \geq (m - k)$$
