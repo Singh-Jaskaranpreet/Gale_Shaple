@@ -45,7 +45,7 @@ Pour GS_Etudiant :
    Le moins préféré est donc toujours le dernier élément (`[-1]`) en $O(1)$.
 
 5. **Remplacer un étudiant**  
-   Lorsqu'un meilleur étudiant est accepté, on retire le dernier de la liste triée, on insère le nouveau, puis on re-trie (ou on insère de façon ordonnée) la liste.
+   Lorsqu'un meilleur étudiant est accepté, on remplace le dernier par le nouveau, puis on re-trie (ou on insère de façon ordonnée) la liste.
 
 
 Pour GS_Parcours :

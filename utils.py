@@ -92,17 +92,10 @@ class GS_Etudiant:
         return etu, self.pos_etu(etu, spe_ind)
 
     def remplacer(self, etu_anc, etu_nv, spe_ind):
-        # 1. On retire l'ancien (le moins bien classé)
-        self.cap_actu[spe_ind].pop() # Retire le dernier car c'est le moins préféré
+        self.cap_actu[spe_ind][-1] = etu_nv
         
-        # 2. On ajoute le nouveau
-        self.cap_actu[spe_ind].append(etu_nv)
-        
-        # 3. On TRIE la liste des étudiants admis dans ce parcours 
-        # selon le rang qu'ils ont dans la liste de préférence du parcours
         self.cap_actu[spe_ind].sort(key=lambda e: self.pos_etu(e, spe_ind))
         
-        # 4. Mise à jour des états
         self.mariage[etu_anc] = -1
         self.mariage[etu_nv] = spe_ind
         self.libres.append(etu_anc)
