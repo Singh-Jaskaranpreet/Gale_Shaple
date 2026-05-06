@@ -227,13 +227,13 @@ def paires_instables(mariage, pref_etu, pref_spe, cap_max):
 
 def generer_donnees(n):
     # Q7: Préférences aléatoires
-    pref_etu = [random.sample(range(9), 9) for _ in range(n)]
-    pref_spe = [random.sample(range(n), n) for _ in range(9)]
+    pref_etu = [random.sample(range(10), 10) for _ in range(n)]
+    pref_spe = [random.sample(range(n), n) for _ in range(10)]
     
     # Q8: Capacités équilibrées (Somme = n)
-    base_cap = n // 9
-    reste = n % 9
-    caps = [base_cap + (1 if i < reste else 0) for i in range(9)]
+    base_cap = n // 10
+    reste = n % 10
+    caps = [base_cap + (1 if i < reste else 0) for i in range(10)]
     
     return pref_etu, pref_spe, caps
 
