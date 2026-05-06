@@ -203,12 +203,12 @@ def paires_instables(mariage, pref_etu, pref_spe, cap_max):
         s_actuel = mariage[e]
         choix_e = pref_etu[e]
         
-        # Trouver l'index du master actuel dans les vœux de l'étudiant
+        # Trouver l'index du master actuel dans les préférences de l'étudiant
         idx_limite = choix_e.index(s_actuel)
         
         # L'étudiant regarde tous les masters qu'il préfère à son actuel
         for s_mieux in choix_e[:idx_limite]:
-            # Le master est plein, on cherche s'il y a un "moins bien classé" que 'e'
+            # On cherche s'il y a un "moins bien classé" que 'e'
             pref_s = pref_spe[s_mieux]
             rang_e = pref_s.index(e)
             for admis in admis_actuels[s_mieux]:
