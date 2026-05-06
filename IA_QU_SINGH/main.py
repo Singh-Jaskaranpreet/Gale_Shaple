@@ -1,8 +1,8 @@
-from utils import * # Pour pouvoir utiliser les methodes de exemple.py
+from utils import *
 
-Etu=MatEtu("PrefEtu.txt") # Execution de la methode lectureFichier du fichier exemple.
+Etu=MatEtu("PrefEtu.txt")
 print("Etudiant : \n", Etu)
-Spe, Cap=MatSpe("PrefSpe.txt") # Execution de la methode lectureFichier du fichier exemple.
+Spe, Cap=MatSpe("PrefSpe.txt")
 print("Parcours : \n", Spe)
 
 print("Capacite : ",Cap)
