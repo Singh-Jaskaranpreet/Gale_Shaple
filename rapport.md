@@ -107,7 +107,7 @@ Le temps d'exécution confirme l'efficacité de l'algorithme pour des instances 
 
 ## 4. Optimisation Linéaire avec Gurobi (Q11-Q15)
 
-### Modélisation (Q11)
+### Maximisation de l’utilité minimale des étudiants (Q11)
 
 Le problème est modélisé avec des variables binaires $x_{i,j} \in \{0, 1\}$ avec $i$ les étudiants et $j$ les parcours.
 
@@ -115,7 +115,7 @@ Contrainte d'unicité : $$\forall i \in \{0, \dots, n-1\}, \quad \sum_{j=0}^{m-1
 
 Contrainte de capacité : $$\forall j \in \{0, \dots, m-1\}, \quad \sum_{i=0}^{n-1} x_{i,j} \leq C_j$$
 
-Contrainte de Seuil (La plus importante) : 
+Contrainte de Seuil : 
 <br>Pour chaque étudiant, son utilité réelle doit être supérieure ou égale à $Z$.
 
 $$\forall i \in \{0, \dots, n-1\}, \quad \sum_{j=0}^{m-1} x_{i,j} \cdot u_{i,j} \geq Z$$
