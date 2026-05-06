@@ -113,7 +113,7 @@ Le problème est modélisé avec des variables binaires $x_{i,j} \in \{0, 1\}$ a
 
 Contrainte d'unicité : $$\forall i \in \{0, \dots, n-1\}, \quad \sum_{j=0}^{m-1} x_{i,j} = 1$$
 
-Contrainte de capacité : $$\forall j \in \{0, \dots, m-1\}, \quad \sum_{i=0}^{n-1} x_{i,j} \leq C_j$$
+Contrainte de capacité : $$\forall j \in \{0, \dots, m-1\}, \quad \sum_{i=0}^{n-1} x_{i,j} = C_j$$
 
 Contrainte de Seuil : 
 <br>Pour chaque étudiant, son utilité réelle doit être supérieure ou égale à $Z$.
